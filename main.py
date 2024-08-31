@@ -5,6 +5,7 @@ from pinpong.board import Board, Pin
 import os
 import random
 import time
+import pandas as pd
 
 # Initialize GUI and Board
 gui = GUI()
@@ -18,7 +19,8 @@ btn3 = Pin(Pin.PA9, Pin.IN)  # Button 3 (Select/Enter)
 # Menu options
 menu_options = [
     "Line Chart", "Bar Chart", "Scatter Plot", "Pie Chart", "Histogram",
-    "Box Plot", "Heatmap", "Customize Chart", "Save Chart", "Load Chart", "Real-Time Data"
+    "Box Plot", "Heatmap", "Customize Chart", "Save Chart", "Load Chart", 
+    "Real-Time Data", "Import Data", "Zoom/Pan", "Share Chart"
 ]
 current_option = 0
 
@@ -32,6 +34,7 @@ custom_color = "blue"
 custom_linestyle = "-"
 custom_marker = ""
 custom_grid = True
+zoom_pan_enabled = False  # Zoom and Pan state
 
 # Function to create a line chart
 def create_line_chart(x=None, y=None):
@@ -242,7 +245,7 @@ def load_chart():
         if 0 <= chart_number < len(image_files):
             gui.draw_image(f'/mnt/data/{image_files[chart_number]}')
         else:
-            raise ValueError("Invalid selection.")
+            raise ValueError("Invalid selection")
     except ValueError:
         gui.draw_text(10, 10, "Invalid selection. Please try again.", color=(255, 0, 0))
         time.sleep(2)
@@ -276,6 +279,53 @@ def display_real_time_data():
     plt.savefig('/mnt/data/realtime_data.png')
     plt.close()
 
+# Function to import data from CSV
+def import_data():
+    gui.clear()
+    gui.draw_text(10, 10, "Enter CSV filename to import:", color=(255, 255, 255))
+    filename = gui.get_input().strip()
+    gui.clear()
+
+    try:
+        data = pd.read_csv(f'/mnt/data/{filename}.csv')
+        gui.draw_text(10, 10, f"Data imported successfully from {filename}.csv", color=(0, 255, 0))
+        time.sleep(2)
+        return data
+    except Exception as e:
+        gui.draw_text(10, 10, f"Error importing data: {str(e)}", color=(255, 0, 0))
+        time.sleep(2)
+        gui.clear()
+        return None
+
+# Function to enable or disable zoom and pan
+def toggle_zoom_pan():
+    global zoom_pan_enabled
+    zoom_pan_enabled = not zoom_pan_enabled
+    if zoom_pan_enabled:
+        plt.rcParams['toolbar'] = 'toolmanager'
+        gui.draw_text(10, 10, "Zoom and Pan enabled", color=(0, 255, 0))
+    else:
+        plt.rcParams['toolbar'] = 'None'
+        gui.draw_text(10, 10, "Zoom and Pan disabled", color=(255, 0, 0))
+    time.sleep(2)
+    gui.clear()
+
+# Function to share chart (save and potentially send over a network)
+def share_chart():
+    gui.clear()
+    gui.draw_text(10, 10, "Enter filename to share chart:", color=(255, 255, 255))
+    filename = gui.get_input().strip()
+    gui.clear()
+
+    try:
+        plt.savefig(f'/mnt/data/{filename}.png')
+        # Network sharing code can be added here if needed
+        gui.draw_text(10, 10, f"Chart saved as {filename}.png", color=(0, 255, 0))
+    except Exception as e:
+        gui.draw_text(10, 10, f"Error sharing chart: {str(e)}", color=(255, 0, 0))
+    time.sleep(2)
+    gui.clear()
+
 # Main menu display function
 def display_menu():
     global current_option
@@ -303,6 +353,12 @@ def display_menu():
             load_chart()
         elif menu_options[current_option] == "Real-Time Data":
             display_real_time_data()
+        elif menu_options[current_option] == "Import Data":
+            import_data()
+        elif menu_options[current_option] == "Zoom/Pan":
+            toggle_zoom_pan()
+        elif menu_options[current_option] == "Share Chart":
+            share_chart()
 
 # Display the selected chart
 def display_chart():
