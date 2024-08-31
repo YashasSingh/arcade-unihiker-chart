@@ -18,7 +18,7 @@ btn3 = Pin(Pin.PA9, Pin.IN)  # Button 3 (Select/Enter)
 # Menu options
 menu_options = [
     "Line Chart", "Bar Chart", "Scatter Plot", "Pie Chart", "Histogram",
-    "Customize Chart", "Save Chart", "Load Chart", "Real-Time Data"
+    "Box Plot", "Heatmap", "Customize Chart", "Save Chart", "Load Chart", "Real-Time Data"
 ]
 current_option = 0
 
@@ -118,6 +118,38 @@ def create_histogram(x=None):
     plt.savefig('/mnt/data/histogram.png')
     plt.close()
 
+# Function to create a box plot
+def create_box_plot(x=None):
+    if x is None:
+        x = [np.random.randn(100), np.random.randn(100) + 1, np.random.randn(100) - 1]
+
+    plt.figure()
+    plt.boxplot(x)
+    plt.title(custom_title)
+    plt.xlabel(custom_xlabel)
+    plt.ylabel(custom_ylabel)
+    if custom_grid:
+        plt.grid(True)
+
+    plt.savefig('/mnt/data/box_plot.png')
+    plt.close()
+
+# Function to create a heatmap
+def create_heatmap(data=None):
+    if data is None:
+        data = np.random.rand(10, 10)
+
+    plt.figure()
+    plt.imshow(data, cmap='hot', interpolation='nearest')
+    plt.title(custom_title)
+    plt.xlabel(custom_xlabel)
+    plt.ylabel(custom_ylabel)
+    if custom_grid:
+        plt.grid(True)
+
+    plt.savefig('/mnt/data/heatmap.png')
+    plt.close()
+
 # Function to input custom data
 def input_custom_data():
     global custom_data_x, custom_data_y
@@ -133,8 +165,13 @@ def input_custom_data():
     y_values = gui.get_input()
     gui.clear()
 
-    custom_data_x = [float(x.strip()) for x in x_values.split(',')]
-    custom_data_y = [float(y.strip()) for y in y_values.split(',')]
+    try:
+        custom_data_x = [float(x.strip()) for x in x_values.split(',')]
+        custom_data_y = [float(y.strip()) for y in y_values.split(',')]
+    except ValueError:
+        gui.draw_text(10, 10, "Invalid data entered. Please try again.", color=(255, 0, 0))
+        time.sleep(2)
+        gui.clear()
 
 # Function to customize chart properties
 def customize_chart():
@@ -176,8 +213,13 @@ def save_chart():
     gui.draw_text(10, 10, "Enter filename to save chart:", color=(255, 255, 255))
     filename = gui.get_input()
     gui.clear()
-    
-    plt.savefig(f'/mnt/data/{filename}.png')
+
+    try:
+        plt.savefig(f'/mnt/data/{filename}.png')
+    except Exception as e:
+        gui.draw_text(10, 10, f"Error saving chart: {str(e)}", color=(255, 0, 0))
+        time.sleep(2)
+        gui.clear()
 
 # Function to load a saved chart from the library
 def load_chart():
@@ -187,58 +229,61 @@ def load_chart():
 
     if not image_files:
         gui.draw_text(10, 10, "No saved charts found.", color=(255, 255, 255))
-        gui.mainloop()
+        time.sleep(2)
+        gui.clear()
         return
 
     for i, file in enumerate(image_files):
         gui.draw_text(10, 30 + i * 20, f"{i + 1}: {file}", color=(255, 255, 255))
 
     gui.draw_text(10, 10, "Enter chart number to load:", color=(255, 255, 255))
-    chart_number = int(gui.get_input()) - 1
-    gui.clear()
+    try:
+        chart_number = int(gui.get_input()) - 1
+        if 0 <= chart_number < len(image_files):
+            gui.draw_image(f'/mnt/data/{image_files[chart_number]}')
+        else:
+            raise ValueError("Invalid selection.")
+    except ValueError:
+        gui.draw_text(10, 10, "Invalid selection. Please try again.", color=(255, 0, 0))
+        time.sleep(2)
+        gui.clear()
 
-    if 0 <= chart_number < len(image_files):
-        gui.draw_image(f'/mnt/data/{image_files[chart_number]}')
-    else:
-        gui.draw_text(10, 10, "Invalid selection.", color=(255, 255, 255))
-
-# Function to display real-time data on a line chart
+# Function to display real-time data
 def display_real_time_data():
-    global custom_data_x, custom_data_y
-
-    plt.ion()  # Turn on interactive mode
+    plt.ion()
     fig, ax = plt.subplots()
+    x, y = [], []
+    
+    while True:
+        if btn3.read_digital() == 0:  # Stop real-time data
+            plt.ioff()
+            break
 
-    custom_data_x = []
-    custom_data_y = []
-
-    for i in range(50):  # Simulate 50 points of real-time data
-        new_x = i
-        new_y = random.uniform(-1, 1)
-
-        custom_data_x.append(new_x)
-        custom_data_y.append(new_y)
+        x.append(len(x))
+        y.append(random.random())
 
         ax.clear()
-        ax.plot(custom_data_x, custom_data_y, color=custom_color, linestyle=custom_linestyle, marker=custom_marker)
+        ax.plot(x, y, color=custom_color, linestyle=custom_linestyle, marker=custom_marker)
         ax.set_title(custom_title)
         ax.set_xlabel(custom_xlabel)
         ax.set_ylabel(custom_ylabel)
         if custom_grid:
             ax.grid(True)
-        plt.draw()
-        plt.pause(0.1)  # Pause to simulate real-time data
 
-    plt.ioff()  # Turn off interactive mode
-    plt.savefig('/mnt/data/real_time_data_chart.png')
+        plt.pause(0.1)
+        gui.draw_image('/mnt/data/realtime_data.png')
+
+    plt.savefig('/mnt/data/realtime_data.png')
     plt.close()
-    gui.draw_image('/mnt/data/real_time_data_chart.png')
 
-# Display the menu and handle user selection
+# Main menu display function
 def display_menu():
     global current_option
-    gui.draw_text(10, 10, f"Select Option:", color=(255, 255, 255))
-    gui.draw_text(10, 40, f"{menu_options[current_option]}", color=(255, 255, 255))
+
+    gui.clear()
+    gui.draw_text(10, 10, "Select an option:", color=(255, 255, 255))
+    for i, option in enumerate(menu_options):
+        gui.draw_text(10, 30 + i * 20, f"{'> ' if i == current_option else '  '} {option}", color=(255, 255, 255))
 
     if btn1.read_digital() == 0:  # Button 1 pressed (Next option)
         current_option = (current_option + 1) % len(menu_options)
@@ -248,7 +293,7 @@ def display_menu():
         gui.clear()
     elif btn3.read_digital() == 0:  # Button 3 pressed (Select option)
         gui.clear()
-        if menu_options[current_option] in ["Line Chart", "Bar Chart", "Scatter Plot", "Pie Chart", "Histogram"]:
+        if menu_options[current_option] in ["Line Chart", "Bar Chart", "Scatter Plot", "Pie Chart", "Histogram", "Box Plot", "Heatmap"]:
             display_chart()
         elif menu_options[current_option] == "Customize Chart":
             customize_chart()
@@ -285,6 +330,12 @@ def display_chart():
     elif menu_options[current_option] == "Histogram":
         create_histogram()
         gui.draw_image('/mnt/data/histogram.png')
+    elif menu_options[current_option] == "Box Plot":
+        create_box_plot()
+        gui.draw_image('/mnt/data/box_plot.png')
+    elif menu_options[current_option] == "Heatmap":
+        create_heatmap()
+        gui.draw_image('/mnt/data/heatmap.png')
 
 # Main loop
 while True:
